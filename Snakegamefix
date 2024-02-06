@@ -1,0 +1,251 @@
+using System;
+using System.Collections.Generic;
+
+namespace Snake
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // initialization(初始化遊戲)
+            Game game = new Game(32, 16);
+
+            // GameRunning(運行遊戲)
+            game.Run();
+        }
+    }
+
+    enum Direction
+    {
+        UP,
+        DOWN,
+        LEFT,
+        RIGHT
+    }
+
+    class Game
+    {
+        private int screenWidth;
+        private int screenHeight;
+        private Random random;
+        private int score;
+        private bool gameOver;
+        private Snake snake;
+        private Coordinate berry;
+
+        public Game(int screenWidth, int screenHeight)
+        {
+            this.screenWidth = screenWidth;
+            this.screenHeight = screenHeight;
+            this.random = new Random();
+            this.score = 5;
+            this.gameOver = false;
+            this.snake = new Snake(screenWidth / 2, screenHeight / 2);
+            this.berry = new Coordinate(random.Next(0, screenWidth), random.Next(0, screenHeight));
+        }
+
+        public void Run()
+        {
+            while (!gameOver)
+            {
+                // 渲染遊戲
+                Render();
+
+                // 處理用戶輸入
+                HandleInput();
+
+                // 更新遊戲狀態
+                Update();
+            }
+
+            Console.SetCursorPosition(screenWidth / 5, screenHeight / 2);
+            Console.WriteLine("Game over, Score: " + score);
+            Console.SetCursorPosition(screenWidth / 5, screenHeight / 2 + 1);
+        }
+
+        private void Render()
+        {
+            Console.Clear();
+
+            // 渲染邊界
+            RenderBorder();
+
+            // 渲染貪食蛇
+            snake.Render();
+
+            // 渲染果實
+            Console.SetCursorPosition(berry.X, berry.Y);
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.Write("■");
+
+            // 顯示得分
+            Console.SetCursorPosition(0, 0);
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine("Score: " + score);
+        }
+
+        private void RenderBorder()
+        {
+            for (int i = 0; i < screenWidth; i++)
+            {
+                Console.SetCursorPosition(i, 0);
+                Console.Write("■");
+                Console.SetCursorPosition(i, screenHeight - 1);
+                Console.Write("■");
+            }
+
+            for (int i = 0; i < screenHeight; i++)
+            {
+                Console.SetCursorPosition(0, i);
+                Console.Write("■");
+                Console.SetCursorPosition(screenWidth - 1, i);
+                Console.Write("■");
+            }
+        }
+
+        private void HandleInput()
+        {
+            if (Console.KeyAvailable)
+            {
+                ConsoleKeyInfo key = Console.ReadKey(true);
+                Direction newDirection = snake.GetNextDirection(key.Key);
+                snake.ChangeDirection(newDirection);
+            }
+        }
+
+        private void Update()
+        {
+            // 更新貪食蛇
+            snake.Move();
+
+            // 檢查是否吃到了果實
+            if (snake.Head.X == berry.X && snake.Head.Y == berry.Y)
+            {
+                score++;
+                PlaceNewBerry();
+            }
+
+            // 檢查碰撞
+            if (snake.HasCollided(screenWidth, screenHeight))
+            {
+                gameOver = true;
+            }
+        }
+
+        private void PlaceNewBerry()
+        {
+            berry.X = random.Next(1, screenWidth - 1);
+            berry.Y = random.Next(1, screenHeight - 1);
+        }
+    }
+
+    class Coordinate
+    {
+        public int X { get; set; }
+        public int Y { get; set; }
+
+        public Coordinate(int x, int y)
+        {
+            X = x;
+            Y = y;
+        }
+    }
+
+    class Snake
+    {
+        private List<Coordinate> body;
+        private Direction direction;
+
+        public Coordinate Head { get { return body[0]; } }
+
+        public Snake(int startX, int startY)
+        {
+            body = new List<Coordinate>();
+            body.Add(new Coordinate(startX, startY));
+            direction = Direction.RIGHT;
+        }
+
+        public void Render()
+        {
+            foreach (Coordinate part in body)
+            {
+                Console.SetCursorPosition(part.X, part.Y);
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write("■");
+            }
+        }
+
+        public Direction GetNextDirection(ConsoleKey key)
+        {
+            switch (key)
+            {
+                case ConsoleKey.UpArrow:
+                    return Direction.UP;
+                case ConsoleKey.DownArrow:
+                    return Direction.DOWN;
+                case ConsoleKey.LeftArrow:
+                    return Direction.LEFT;
+                case ConsoleKey.RightArrow:
+                    return Direction.RIGHT;
+                default:
+                    return direction;
+            }
+        }
+
+        public void ChangeDirection(Direction newDirection)
+        {
+            if ((direction == Direction.UP && newDirection != Direction.DOWN) ||
+                (direction == Direction.DOWN && newDirection != Direction.UP) ||
+                (direction == Direction.LEFT && newDirection != Direction.RIGHT) ||
+                (direction == Direction.RIGHT && newDirection != Direction.LEFT))
+            {
+                direction = newDirection;
+            }
+        }
+
+        public void Move()
+        {
+            Coordinate newHead = new Coordinate(Head.X, Head.Y);
+
+            switch (direction)
+            {
+                case Direction.UP:
+                    newHead.Y--;
+                    break;
+                case Direction.DOWN:
+                    newHead.Y++;
+                    break;
+                case Direction.LEFT:
+                    newHead.X--;
+                    break;
+                case Direction.RIGHT:
+                    newHead.X++;
+                    break;
+            }
+
+            body.Insert(0, newHead);
+        }
+
+        public bool HasCollided(int screenWidth, int screenHeight)
+        {
+            Coordinate head = Head;
+
+            // Check if touch the border(檢查是否碰到邊界)
+            if (head.X <= 0 || head.X >= screenWidth - 1 || head.Y <= 0 || head.Y >= screenHeight - 1)
+            {
+                return true;
+            }
+
+            // Check if touch your own body(檢查是否碰到自己的身體)
+            for (int i = 1; i < body.Count; i++)
+            {
+                if (head.X == body[i].X && head.Y == body[i].Y)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+}
